@@ -3,6 +3,17 @@ name = "tmatebot"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+dotenvy = "0.15.7"
+tokio = { version = "1.39.3", features = ["macros", "rt-multi-thread", "fs", "time", "sync"] }
+serenity = { version = "0.12.2", default-features = false, features = [
+	"client",
+	"builder",
+	"cache",
+	"model",
+	"utils",
+	"gateway",
+	"rustls_backend",
+] }
+owo-colors = "4.0.0"
+phf = { version = "0.11.2", features = ["macros"] }
