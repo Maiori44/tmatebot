@@ -1,8 +1,9 @@
 use std::{collections::HashSet, env, error::Error, sync::LazyLock};
 use commands::COMMANDS;
+use interactions::INTERACTIONS;
 use owo_colors::OwoColorize;
 use serenity::{
-	all::{Context, EventHandler, GatewayIntents, Message, Ready, UserId},
+	all::{Context, EventHandler, GatewayIntents, Interaction, Message, Ready, UserId},
 	async_trait,
 	Client
 };
@@ -14,6 +15,7 @@ fn load_list() -> Result<HashSet<UserId>, Box<dyn Error>> {
 }
 
 mod commands;
+mod interactions;
 
 static WHITELIST: LazyLock<HashSet<UserId>> = LazyLock::new(|| load_list().unwrap_or_default());
 
@@ -50,6 +52,15 @@ impl EventHandler for Handler {
 				msg.author.id.bright_blue()
 			);
 		}
+	}
+
+	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+		let Interaction::Component(interaction) = interaction else { return };
+		if !WHITELIST.contains(&interaction.user.id) {
+			return
+		}
+		let Some(interaction_fn) = INTERACTIONS.get(&interaction.data.custom_id) else { return };
+		interaction_fn(&ctx, &interaction).await.unwrap();
 	}
 }
 
