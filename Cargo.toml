@@ -10,6 +10,7 @@ serenity = { version = "0.12.2", default-features = false, features = [
 	"client",
 	"builder",
 	"cache",
+	"collector",
 	"model",
 	"utils",
 	"gateway",
@@ -17,3 +18,4 @@ serenity = { version = "0.12.2", default-features = false, features = [
 ] }
 owo-colors = "4.0.0"
 phf = { version = "0.11.2", features = ["macros"] }
+sha256 = "1.5.0"

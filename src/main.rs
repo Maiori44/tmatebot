@@ -32,8 +32,8 @@ impl EventHandler for Handler {
 			return
 		}
 		if !WHITELIST.contains(&msg.author.id) {
-			msg.reply(ctx, "You are not authorized.").await.ok();
 			println!("Refused possible request by unauthorized user {}.", msg.author.id.bright_blue());
+			msg.reply_ping(ctx, "You are not authorized.").await.ok();
 			return
 		}
 		let mut args = msg.content.split_whitespace();
@@ -55,12 +55,29 @@ impl EventHandler for Handler {
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-		let Interaction::Component(interaction) = interaction else { return };
+		if let Some(interaction) = interaction.as_modal_submit() {
+			interaction.defer(ctx).await.ok();
+			return
+		}
+		let Some(interaction) = interaction.as_message_component() else { return };
 		if !WHITELIST.contains(&interaction.user.id) {
 			return
 		}
 		let Some(interaction_fn) = INTERACTIONS.get(&interaction.data.custom_id) else { return };
-		interaction_fn(&ctx, &interaction).await.unwrap();
+		if let Err(e) = interaction_fn(&ctx, &interaction).await {
+			println!(
+				"{} trying to execute `{}` interaction as requested by {}: {e}",
+				"Error".red(),
+				interaction.data.custom_id.purple(),
+				interaction.user.id.bright_blue()
+			);
+		} else {
+			println!(
+				"Successfully executed `{}` interaction as requested by {}.",
+				interaction.data.custom_id.purple(),
+				interaction.user.id.bright_blue()
+			);
+		}
 	}
 }
 
