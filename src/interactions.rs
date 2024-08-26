@@ -1,22 +1,18 @@
-use std::{error::Error, time::Duration};
-use serenity::{all::{ComponentInteraction, Context, CreateQuickModal, EditMessage}, futures::future::BoxFuture};
+use std::time::Duration;
+use owo_colors::OwoColorize;
+use serenity::all::{ComponentInteraction, Context, CreateQuickModal, EditMessage};
 use phf::{phf_ordered_map, OrderedMap};
 use tokio::fs;
 use sha256;
+use crate::{executable, Executable, ExecutableArg};
 
-type Interaction = for<'a> fn(
-	&'a Context,
-	&'a ComponentInteraction,
-) -> BoxFuture<'a, Result<(), Box<dyn Error>>>;
+impl ExecutableArg for ComponentInteraction {
+	fn key(&self) -> String {
+		self.data.custom_id.to_owned()
+	}
 
-macro_rules! interaction {
-	(async |$ctx:ident, $interaction:ident| $code:block) => {
-		|$ctx, $interaction| {
-			Box::pin(async move {
-				$code;
-				return Ok(());
-			})
-		}
+	fn requester(&self) -> String {
+		self.user.id.bright_blue().to_string()
 	}
 }
 
@@ -36,15 +32,16 @@ async fn ask_input(
 	)
 }
 
-pub static INTERACTIONS: OrderedMap<&str, Interaction> = phf_ordered_map! {
-	"login" => interaction!(async |ctx, interaction| {
-		let response = ask_input(ctx, interaction, "Password").await?;
-		let mut display = interaction.channel_id.say(ctx, "Loading...").await?;
+pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = phf_ordered_map! {
+	"login" => executable!(async |ctx, interaction| {
+		let response = ask_input(&ctx, &interaction, "Password").await?;
+		let mut display = interaction.channel_id.say(&ctx, "Loading...").await?;
 		let password = fs::read_to_string(format!("password_{}.txt", interaction.user.id))
 			.await
 			.unwrap_or_default();
 		if sha256::digest(response) != password {
 			display.edit(ctx, EditMessage::new().content("Authorization failed.")).await?;
+			return Ok(());
 		}
 	})
 };

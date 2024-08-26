@@ -3,19 +3,57 @@ use commands::COMMANDS;
 use interactions::INTERACTIONS;
 use owo_colors::OwoColorize;
 use serenity::{
-	all::{Context, EventHandler, GatewayIntents, Interaction, Message, Ready, UserId},
-	async_trait,
-	Client
+	all::{Context, EventHandler, GatewayIntents, Interaction, Message, Ready, UserId}, async_trait, futures::future::BoxFuture, Client
 };
+use phf::OrderedMap;
 
-fn load_list() -> Result<HashSet<UserId>, Box<dyn Error>> {
+mod commands;
+mod interactions;
+
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
+pub type Executable<T> = fn(Context, T) -> BoxFuture<'static, Result<()>>;
+
+macro_rules! executable {
+	(async |$ctx:ident, $arg:ident| $code:block) => {
+		|$ctx, $arg| {
+			Box::pin(async move {
+				$code;
+				return Ok(());
+			})
+		}
+	}
+}
+
+pub(crate) use executable;
+
+pub trait ExecutableArg {
+	fn key(&self) -> String;
+	fn requester(&self) -> String;
+}
+
+async fn execute<T: ExecutableArg>(
+	map: &OrderedMap<&str, Executable<T>>,
+	ctx: Context,
+	arg: T,
+) {
+	let key = arg.key();
+	let requester = arg.requester();
+	let Some(to_execute) = map.get(&key) else { return };
+	if let Err(e) = to_execute(ctx, arg).await {
+		println!(
+			"{} trying to run `{key}` as requested by {requester}: {e}",
+			"Error".red(),
+		);
+	} else {
+		println!("Successfully ran `{key}` as requested by {requester}.");
+	}
+}
+
+fn load_list() -> Result<HashSet<UserId>> {
 	Ok(env::var("WHITELIST")?.split(',')
 		.map(|string_id| UserId::new(string_id.parse().unwrap_or_default()))
 		.collect())
 }
-
-mod commands;
-mod interactions;
 
 static WHITELIST: LazyLock<HashSet<UserId>> = LazyLock::new(|| load_list().unwrap_or_default());
 
@@ -36,22 +74,7 @@ impl EventHandler for Handler {
 			msg.reply_ping(ctx, "You are not authorized.").await.ok();
 			return
 		}
-		let mut args = msg.content.split_whitespace();
-		let Some(command) = COMMANDS.get(args.next().unwrap_or_default()) else { return };
-		if let Err(e) = command(&ctx, &msg, args).await {
-			println!(
-				"{} trying to run `{}` as requested by {}: {e}",
-				"Error".red(),
-				msg.content.purple(),
-				msg.author.id.bright_blue()
-			);
-		} else {
-			println!(
-				"Successfully ran `{}` as requested by {}.",
-				msg.content.purple(),
-				msg.author.id.bright_blue()
-			);
-		}
+		execute(&COMMANDS, ctx, msg).await;
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -59,30 +82,16 @@ impl EventHandler for Handler {
 			interaction.defer(ctx).await.ok();
 			return
 		}
-		let Some(interaction) = interaction.as_message_component() else { return };
+		let Interaction::Component(interaction) = interaction else { return };
 		if !WHITELIST.contains(&interaction.user.id) {
 			return
 		}
-		let Some(interaction_fn) = INTERACTIONS.get(&interaction.data.custom_id) else { return };
-		if let Err(e) = interaction_fn(&ctx, &interaction).await {
-			println!(
-				"{} trying to execute `{}` interaction as requested by {}: {e}",
-				"Error".red(),
-				interaction.data.custom_id.purple(),
-				interaction.user.id.bright_blue()
-			);
-		} else {
-			println!(
-				"Successfully executed `{}` interaction as requested by {}.",
-				interaction.data.custom_id.purple(),
-				interaction.user.id.bright_blue()
-			);
-		}
+		execute(&INTERACTIONS, ctx, interaction).await;
 	}
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
 	dotenvy::dotenv()?;
 	let mut client = Client::builder(env::var("TOKEN")?, GatewayIntents::DIRECT_MESSAGES)
 		.event_handler(Handler)
