@@ -50,15 +50,6 @@ impl EventHandler for Handler {
 				msg.author.id.bright_blue()
 			);
 		}
-		/*println!("Granting access request by {}.", msg.author.id.bright_blue());
-		let display = match msg.reply(&ctx, "Creating connection...").await {
-			Ok(display) => display,
-			Err(e) => {
-				println!("Failed to create a connection! ({e})");
-				msg.reply(ctx, "Failed to create a connection!```rs\n{e}```").await.ok();
-				return;
-			}
-		};*/
 	}
 }
 
