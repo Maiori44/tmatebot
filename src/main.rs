@@ -42,11 +42,16 @@ async fn execute<T: ExecutableArg>(
 	let Some(to_execute) = map.get(&key) else { return };
 	if let Err(e) = to_execute(ctx, arg).await {
 		println!(
-			"{} trying to run `{key}` as requested by {requester}: {e}",
+			"{} trying to run `{}` as requested by {requester}: {e}.",
 			"Error".red(),
+			key.purple()
 		);
 	} else {
-		println!("Successfully ran `{key}` as requested by {requester}.");
+		println!(
+			"{} ran `{}` as requested by {requester}.",
+			"Successfully".green(),
+			key.purple()
+		);
 	}
 }
 
