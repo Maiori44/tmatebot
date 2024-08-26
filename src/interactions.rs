@@ -1,14 +1,14 @@
 use std::time::Duration;
 use owo_colors::OwoColorize;
-use serenity::all::{ComponentInteraction, Context, CreateQuickModal, EditMessage};
+use serenity::all::{ComponentInteraction, Context, CreateQuickModal};
+use crate::{executable, extensions::MessageExt, Executable, ExecutableArg};
 use phf::{phf_ordered_map, OrderedMap};
 use tokio::fs;
 use sha256;
-use crate::{executable, Executable, ExecutableArg};
 
 impl ExecutableArg for ComponentInteraction {
 	fn key(&self) -> String {
-		self.data.custom_id.to_owned()
+		self.data.custom_id.to_lowercase()
 	}
 
 	fn requester(&self) -> String {
@@ -40,7 +40,7 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 			.await
 			.unwrap_or_default();
 		if sha256::digest(response) != password {
-			display.edit(ctx, EditMessage::new().content("Authorization failed.")).await?;
+			display.edit_content(ctx, "Authorization failed.").await?;
 			return Ok(());
 		}
 	})

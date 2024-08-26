@@ -1,12 +1,12 @@
 use std::time::Instant;
 use owo_colors::OwoColorize;
-use serenity::all::{CreateButton, CreateMessage, EditMessage, Message};
+use serenity::all::{EditMessage, Message};
+use crate::{executable, extensions::ChannelIdExt, Executable, ExecutableArg};
 use phf::{phf_ordered_map, OrderedMap};
-use crate::{executable, Executable, ExecutableArg};
 
 impl ExecutableArg for Message {
 	fn key(&self) -> String {
-		self.content.to_owned()
+		self.content.to_lowercase()
 	}
 
 	fn requester(&self) -> String {
@@ -28,11 +28,6 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 		pong.edit(ctx, EditMessage::new().content(format!("Bot latency: {elapsed:?}"))).await?;
 	}),
 	"connect" => executable!(async |ctx, msg| {
-		msg.channel_id.send_message(
-			ctx,
-			CreateMessage::new()
-				.content("A password is required.")
-				.button(CreateButton::new("login").label("Login"))
-		).await?;
+		msg.channel_id.send_button(ctx, "A password is required.", "Login").await?;
 	}),
 };
