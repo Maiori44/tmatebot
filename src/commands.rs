@@ -1,6 +1,6 @@
 use std::time::Instant;
 use owo_colors::OwoColorize;
-use serenity::all::{EditMessage, Message};
+use serenity::all::{ButtonStyle, EditMessage, Message};
 use crate::{executable, extensions::ChannelIdExt, Executable, ExecutableArg};
 use phf::{phf_ordered_map, OrderedMap};
 
@@ -28,6 +28,9 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 		pong.edit(ctx, EditMessage::new().content(format!("Bot latency: {elapsed:?}"))).await?;
 	}),
 	"connect" => executable!(async |ctx, msg| {
-		msg.channel_id.send_button(ctx, "A password is required.", "Login").await?;
+		msg.channel_id.send_button(ctx, "Insert password:", "Login", ButtonStyle::Primary).await?;
 	}),
+	"password" => executable!(async |ctx, msg| {
+		msg.channel_id.send_button(ctx, "Insert password:", "Register", ButtonStyle::Primary).await?;
+	})
 };
