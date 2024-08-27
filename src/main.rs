@@ -8,6 +8,7 @@ use serenity::{
 use phf::OrderedMap;
 
 mod extensions;
+mod connections;
 mod commands;
 mod interactions;
 

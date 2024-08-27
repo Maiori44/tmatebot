@@ -10,10 +10,14 @@ use serenity::{
 		Message,
 		UserId
 	},
-	Result,
-	Error
+	Error,
+	Result
 };
-use crate::{executable, extensions::MessageExt, Executable, ExecutableArg};
+use crate::{
+	connections::{Connection, CONNECTIONS},
+	executable,
+	extensions::MessageExt, Executable, ExecutableArg
+};
 use phf::{phf_ordered_map, OrderedMap};
 use tokio::fs;
 use sha256;
@@ -56,7 +60,7 @@ async fn assert_password(
 	userid: UserId,
 	msg: &mut Message
 ) -> Result<()> {
-	let saved_password = fs::read_to_string(format!("password_{}.txt", userid))
+	let saved_password = fs::read_to_string(format!("password_{}.dat", userid))
 		.await
 		.unwrap_or_default();
 	if password.is_empty() && saved_password.is_empty() {
@@ -78,7 +82,7 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 		]).await?[..2] else { unreachable!() };
 		let mut display = interaction.channel_id.say(&ctx, "Loading...").await?;
 		assert_password(&ctx, password, interaction.user.id, &mut display).await?;
-		// TODO: everythi
+		Connection::new(ctx, display).await?;
 	}),
 	"register" => executable!(async |ctx, interaction| {
 		let [ref old_password, ref new_password] = ask_input(&ctx, &interaction, &[
@@ -91,7 +95,7 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 		match assert_password(&ctx, old_password, interaction.user.id, &mut result_msg).await {
 			Ok(()) | Err(Error::Other("No passwords defined")) => {
 				fs::write(
-					format!("password_{}.txt", interaction.user.id),
+					format!("password_{}.dat", interaction.user.id),
 					sha256::digest(new_password)
 				).await?;
 				result_msg.edit_content(ctx, "Passoword updated.").await?;
@@ -99,4 +103,10 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 			Err(e) => Err(e)?,
 		};
 	}),
+	"close" => executable!(async |ctx, interaction| {
+		if let Some(connection) = CONNECTIONS.lock().await.remove(&interaction.message.id) {
+			connection.terminate().await?;
+			interaction.defer(ctx).await?;
+		}
+	})
 };
