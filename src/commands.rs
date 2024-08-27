@@ -14,6 +14,8 @@ impl ExecutableArg for Message {
 	}
 }
 
+const PASSWORD_PROMP: &'static str = "Authorization is required.";
+
 pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 	"help" => executable!(async |ctx, msg| {
 		msg.channel_id.say(ctx, format!(
@@ -28,9 +30,9 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 		pong.edit(ctx, EditMessage::new().content(format!("Bot latency: {elapsed:?}"))).await?;
 	}),
 	"connect" => executable!(async |ctx, msg| {
-		msg.channel_id.send_button(ctx, "Insert password:", "Login", ButtonStyle::Primary).await?;
+		msg.channel_id.send_button(ctx, PASSWORD_PROMP, "Login", ButtonStyle::Primary).await?;
 	}),
 	"password" => executable!(async |ctx, msg| {
-		msg.channel_id.send_button(ctx, "Insert password:", "Register", ButtonStyle::Primary).await?;
+		msg.channel_id.send_button(ctx, PASSWORD_PROMP, "Register", ButtonStyle::Primary).await?;
 	})
 };

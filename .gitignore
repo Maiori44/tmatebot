@@ -1,4 +1,4 @@
 /target
 Cargo.lock
 .env
-password_*.txt
+password_*.dat
