@@ -1,7 +1,7 @@
-use std::time::Instant;
+use std::{fmt::Display, time::Instant};
 use owo_colors::OwoColorize;
 use serenity::all::{ButtonStyle, EditMessage, Message};
-use crate::{executable, extensions::ChannelIdExt, Executable, ExecutableArg};
+use crate::{executable, extensions::ChannelIdExt, interactions::TIME_UNITS, Executable, ExecutableArg};
 use phf::{phf_ordered_map, OrderedMap};
 
 impl ExecutableArg for Message {
@@ -14,13 +14,19 @@ impl ExecutableArg for Message {
 	}
 }
 
-const PASSWORD_PROMP: &'static str = "Authorization is required.";
+fn format_list(name: &str, iter: impl Iterator<Item = impl Display>) -> String {
+	let mut result = String::with_capacity(128) + "List of " + name + ":\n";
+	result.extend(iter.map(|item| format!("- {item}\n")));
+	result
+}
+
+const PASSWORD_PROMPT: &'static str = "Authorization is required.";
 
 pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 	"help" => executable!(async |ctx, msg| {
-		msg.channel_id.say(ctx, format!(
-			"List of available commands:```diff\n{}```",
-			COMMANDS.keys().map(|key| format!("+ {key}\n")).collect::<String>()
+		msg.channel_id.say(ctx, format_list(
+			"available commands",
+			COMMANDS.keys().map(|command| format!("`{command}`"))
 		)).await?;
 	}),
 	"ping" => executable!(async |ctx, msg| {
@@ -29,10 +35,16 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 		let elapsed = start.elapsed();
 		pong.edit(ctx, EditMessage::new().content(format!("Bot latency: {elapsed:?}"))).await?;
 	}),
+	"units" => executable!(async |ctx, msg| {
+		msg.channel_id.say(ctx, format_list(
+			"valid time units",
+			TIME_UNITS.entries().map(|(unit, (_, name))| format!("**`{}`**: `{name}`", *unit as char))
+		)).await?;
+	}),
 	"connect" => executable!(async |ctx, msg| {
-		msg.channel_id.send_button(ctx, PASSWORD_PROMP, "Login", ButtonStyle::Primary).await?;
+		msg.channel_id.send_button(ctx, PASSWORD_PROMPT, "Login", ButtonStyle::Primary).await?;
 	}),
 	"password" => executable!(async |ctx, msg| {
-		msg.channel_id.send_button(ctx, PASSWORD_PROMP, "Register", ButtonStyle::Primary).await?;
-	})
+		msg.channel_id.send_button(ctx, PASSWORD_PROMPT, "Register", ButtonStyle::Primary).await?;
+	}),
 };
