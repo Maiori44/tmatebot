@@ -19,7 +19,7 @@ use crate::{
 	extensions::MessageExt, Executable, ExecutableArg
 };
 use phf::{phf_ordered_map, OrderedMap};
-use tokio::fs;
+use tokio::{fs, time::Instant};
 use sha256;
 
 impl ExecutableArg for ComponentInteraction {
@@ -74,15 +74,37 @@ async fn assert_password(
 	}
 }
 
+pub static TIME_UNITS: OrderedMap<u8, (u64, &'static str)> = phf_ordered_map! {
+	b's' => (1, "Seconds"),
+	b'm' => (60, "Minutes"),
+	b'h' => (3600, "Hours"),
+	b'd' => (86400, "Days"),
+	b'w' => (604800, "Weeks"),
+	b'y' => (31536000, "Years"),
+};
+
 pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = phf_ordered_map! {
 	"login" => executable!(async |ctx, interaction| {
-		let [ref timeout, ref password] = ask_input(&ctx, &interaction, &[
-			("Timeout", Some(|builder| builder.value(env::var("TIMEOUT").unwrap_or_default()))),
+		let [ref password, ref timeout] = ask_input(&ctx, &interaction, &[
 			("Password", None),
+			("Timeout", Some(|builder| builder.value(env::var("TIMEOUT").unwrap_or_default()))),
 		]).await?[..2] else { unreachable!() };
 		let mut display = interaction.channel_id.say(&ctx, "Loading...").await?;
+		let instant = Instant::now();
 		assert_password(&ctx, password, interaction.user.id, &mut display).await?;
-		Connection::new(ctx, display).await?;
+		let Ok(timeout_num) = timeout[..timeout.len() - 1].parse::<u64>() else {
+			display.edit_content(ctx, "Invalid timeout: must contain a number.").await?;
+			Err(Error::Other("Invalid timeout number"))?;
+			unreachable!();
+		};
+		let Some((timeout_multiplier, _)) = TIME_UNITS.get(
+			&timeout.as_bytes().last().copied().unwrap_or_default().to_ascii_lowercase()
+		) else {
+			display.edit_content(ctx, "Invalid timeout: must end with a valid time unit.").await?;
+			Err(Error::Other("Invalid timeout time unit"))?;
+			unreachable!();
+		};
+		Connection::new(ctx, display, instant, timeout_num * timeout_multiplier).await?;
 	}),
 	"register" => executable!(async |ctx, interaction| {
 		let [ref old_password, ref new_password] = ask_input(&ctx, &interaction, &[
