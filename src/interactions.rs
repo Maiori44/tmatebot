@@ -3,20 +3,25 @@ use owo_colors::OwoColorize;
 use serenity::{
 	all::{
 		ComponentInteraction,
+		ComponentInteractionDataKind,
 		Context,
 		CreateInputText,
 		CreateQuickModal,
+		EditMessage,
 		InputTextStyle,
 		Message,
+		MessageId,
 		UserId
 	},
 	Error,
 	Result
 };
 use crate::{
-	connections::{Connection, CONNECTIONS},
+	connections::{self, Connection, CONNECTIONS},
 	executable,
-	extensions::MessageExt, Executable, ExecutableArg
+	extensions::MessageExt,
+	Executable,
+	ExecutableArg
 };
 use phf::{phf_ordered_map, OrderedMap};
 use tokio::{fs, time::Instant};
@@ -133,8 +138,25 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 	}),
 	"close" => executable!(async |ctx, interaction| {
 		if let Some(connection) = CONNECTIONS.lock().await.remove(&interaction.message.id) {
-			connection.terminate().await?;
+			connection.close().await?;
 			interaction.defer(ctx).await?;
 		}
+	}),
+	"close via menu" => executable!(async |ctx, mut interaction| {
+		let ComponentInteractionDataKind::StringSelect { values } = &interaction.data.kind else {
+			unreachable!()
+		};
+		let result = connections::gatekeep(values.iter()
+			.map_while(|id|Some(MessageId::new(id.parse::<u64>().ok()?)))).await?;
+		let prev_content = interaction.message.content.clone();
+		interaction.message.edit(
+			&ctx,
+			EditMessage::new().select_menu(connections::menu().await).content(if prev_content == "_ _" {
+				result
+			} else {
+				format!("{prev_content}\n{result}")
+			})
+		).await?;
+		interaction.defer(ctx).await?;
 	})
 };

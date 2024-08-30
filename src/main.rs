@@ -16,8 +16,8 @@ pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 pub type Executable<T> = fn(Context, T) -> BoxFuture<'static, Result<()>>;
 
 macro_rules! executable {
-	(async |$ctx:ident, $arg:ident| $code:block) => {
-		|$ctx, $arg| {
+	(async |$ctx:ident, $($arg:ident)+| $code:block) => {
+		|$ctx, $($arg)+| {
 			Box::pin(async move {
 				$code;
 				return Ok(());

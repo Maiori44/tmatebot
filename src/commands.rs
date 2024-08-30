@@ -1,8 +1,13 @@
 use std::{fmt::Display, time::Instant};
 use owo_colors::OwoColorize;
-use serenity::all::{ButtonStyle, CreateMessage, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption, EditMessage, Message};
+use serenity::all::{
+	ButtonStyle,
+	CreateMessage,
+	EditMessage,
+	Message
+};
 use crate::{
-	connections::CONNECTIONS,
+	connections::{self, CONNECTIONS},
 	extensions::ChannelIdExt,
 	interactions::TIME_UNITS,
 	Executable,
@@ -11,8 +16,8 @@ use crate::{
 use phf::{phf_ordered_map, OrderedMap};
 
 macro_rules! executable {
-	(async |$ctx:ident, $msg:ident| $code:block) => {
-		crate::executable!(async |$ctx, $msg| $code)
+	(async |$ctx:ident, $($msg:ident)+| $code:block) => {
+		crate::executable!(async |$ctx, $($msg)+| $code)
 	};
 	(async |$ctx:ident, $msg:ident, $connections:ident| $code:block) => {
 		crate::executable!(async |$ctx, $msg| {
@@ -78,18 +83,10 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 			))
 		)).await?;
 	}),
-	"close" => executable!(async |ctx, msg, connections| {
-		let menu = CreateSelectMenu::new(
-			"close menu",
-			CreateSelectMenuKind::String {
-				options: connections.iter().map(|(id, connection)| {
-					CreateSelectMenuOption::new(
-						id.to_string(),
-						id.to_string()
-					).description(format!("Created by {}", connection.creator))
-				}).collect()
-			}
-		).placeholder("Select connections to close").min_values(1).max_values(connections.len() as u8);
-		msg.channel_id.send_message(ctx, CreateMessage::new().content("_ _").select_menu(menu)).await?;
+	"close" => executable!(async |ctx, msg| {
+		msg.channel_id.send_message(
+			ctx,
+			CreateMessage::new().content("_ _").select_menu(connections::menu().await)
+		).await?;
 	})
 };

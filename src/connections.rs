@@ -1,6 +1,18 @@
 use std::{collections::HashMap, io::BufRead, process::Stdio, sync::LazyLock, time::Duration};
 use circular_buffer::CircularBuffer;
-use serenity::all::{ButtonStyle, Context, Message, MessageId, UserId};
+use serenity::{
+	all::{
+		ButtonStyle,
+		Context,
+		CreateSelectMenu,
+		CreateSelectMenuKind,
+		CreateSelectMenuOption,
+		Message,
+		MessageId,
+		UserId
+	},
+	Error
+};
 use crate::{extensions::MessageExt, Result};
 use tokio::{
 	io::AsyncReadExt,
@@ -87,7 +99,7 @@ impl Connection {
 					if expiring && n > 0 {
 						tokio::spawn(async move {
 							if let Some(connection) = CONNECTIONS.lock().await.remove(&display.id) {
-								connection.terminate().await.unwrap()
+								connection.close().await.unwrap()
 							}
 						});
 					}
@@ -105,9 +117,54 @@ impl Connection {
 		Ok(())
 	}
 
-	pub async fn terminate(mut self) -> Result<()> {
+	pub async fn close(mut self) -> Result<()> {
 		self.process.kill().await?;
 		self.reader.await??;
 		Ok(())
+	}
+}
+
+pub async fn gatekeep(ids: impl Iterator<Item = MessageId>) -> Result<String> {
+	async fn close(id: MessageId) -> Result<()> {
+		if let Some(connection) = CONNECTIONS.lock().await.remove(&id) {
+			connection.close().await?;
+			Ok(())
+		} else {
+			Err(Error::Other("connection not found"))?;
+			unreachable!()
+		}
+	}
+
+	let mut result = String::with_capacity(128);
+	for id in ids {
+		result += &format!("**`{id}`** {}\n", match close(id).await {
+			Ok(()) => String::from("was closed successfully."),
+			Err(e) => format!("could not be closed: {e}."),
+		});
+	}
+	Ok(result)
+}
+
+pub async fn menu() -> CreateSelectMenu {
+	let connections = CONNECTIONS.lock().await;
+	let menu = CreateSelectMenu::new(
+		"close via menu",
+		CreateSelectMenuKind::String {
+			options: if connections.is_empty() {
+				vec![CreateSelectMenuOption::new("You're not supposed to read this", "lmao")]
+			} else {
+				connections.iter().map(|(id, connection)| {
+					CreateSelectMenuOption::new(
+						id.to_string(),
+						id.to_string()
+					).description(format!("Created by {}", connection.creator))
+				}).collect()
+			}
+		}
+	);
+	if connections.len() > 0 {
+		menu.placeholder("Select connections to close").min_values(1).max_values(connections.len() as u8)
+	} else {
+		menu.placeholder("No connections left to close").disabled(true)
 	}
 }
