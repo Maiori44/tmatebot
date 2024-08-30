@@ -104,7 +104,13 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 			Err(Error::Other("Invalid timeout time unit"))?;
 			unreachable!();
 		};
-		Connection::new(ctx, display, instant, timeout_num * timeout_multiplier).await?;
+		Connection::new(
+			ctx,
+			display,
+			interaction.user.id,
+			instant,
+			timeout_num * timeout_multiplier
+		).await?;
 	}),
 	"register" => executable!(async |ctx, interaction| {
 		let [ref old_password, ref new_password] = ask_input(&ctx, &interaction, &[

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io::BufRead, process::Stdio, sync::LazyLock, time::Duration};
 use circular_buffer::CircularBuffer;
-use serenity::all::{ButtonStyle, Context, Message, MessageId};
+use serenity::all::{ButtonStyle, Context, Message, MessageId, UserId};
 use crate::{extensions::MessageExt, Result};
 use tokio::{
 	io::AsyncReadExt,
@@ -17,13 +17,20 @@ pub static CONNECTIONS: LazyLock<Mutex<HashMap<MessageId, Connection>>> = LazyLo
 #[derive(Debug)]
 pub struct Connection {
 	process: Child,
+	pub creator: String,
 	pub creation: String,
 	pub timeout: String,
 	reader: JoinHandle<serenity::Result<()>>,
 }
 
 impl Connection {
-	pub async fn new(ctx: Context, mut display: Message, instant: Instant, timeout: u64) -> Result<()> {
+	pub async fn new(
+		ctx: Context,
+		mut display: Message,
+		creator: UserId,
+		instant: Instant,
+		timeout: u64
+	) -> Result<()> {
 		display.edit_button(&ctx, "Close", ButtonStyle::Danger, false).await?;
 		let (tx, mut rx) = pipe::pipe()?;
 		let fd = tx.into_nonblocking_fd()?;
@@ -38,6 +45,7 @@ impl Connection {
 				.stdin(Stdio::null())
 				.kill_on_drop(true)
 				.spawn()?,
+			creator: creator.to_user(&ctx).await?.global_name.unwrap_or_else(|| String::from("???")),
 			creation: format!("<t:{display_creation}:f>"),
 			timeout: timeout_str.clone(),
 			reader: tokio::spawn(async move {
