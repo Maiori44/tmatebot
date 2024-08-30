@@ -1,7 +1,7 @@
 use std::{fmt::Display, time::Instant};
 use owo_colors::OwoColorize;
 use serenity::all::{ButtonStyle, EditMessage, Message};
-use crate::{executable, extensions::ChannelIdExt, interactions::TIME_UNITS, Executable, ExecutableArg};
+use crate::{connections::CONNECTIONS, executable, extensions::ChannelIdExt, interactions::TIME_UNITS, Executable, ExecutableArg};
 use phf::{phf_ordered_map, OrderedMap};
 
 impl ExecutableArg for Message {
@@ -47,4 +47,19 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 	"password" => executable!(async |ctx, msg| {
 		msg.channel_id.send_button(ctx, PASSWORD_PROMPT, "Register", ButtonStyle::Primary).await?;
 	}),
+	"list" => executable!(async |ctx, msg| {
+		let connections = CONNECTIONS.lock().await;
+		if connections.is_empty() {
+			msg.channel_id.say(ctx, "There are currently no connections established.").await?;
+		} else {
+			msg.channel_id.say(ctx, format_list(
+				"established connections",
+				connections.iter().map(|(id, connection)| format!(
+					"**`{id}`**: created {}, expires {}",
+					connection.creation,
+					connection.timeout,
+				))
+			)).await?;
+		}
+	})
 };

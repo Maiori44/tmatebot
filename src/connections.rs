@@ -17,8 +17,8 @@ pub static CONNECTIONS: LazyLock<Mutex<HashMap<MessageId, Connection>>> = LazyLo
 #[derive(Debug)]
 pub struct Connection {
 	process: Child,
-	creation: String,
-	timeout: String,
+	pub creation: String,
+	pub timeout: String,
 	reader: JoinHandle<serenity::Result<()>>,
 }
 
