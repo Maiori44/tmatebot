@@ -125,8 +125,8 @@ impl Connection {
 }
 
 pub async fn gatekeep(ids: impl Iterator<Item = MessageId>) -> Result<String> {
-	async fn close(id: MessageId) -> Result<()> {
-		if let Some(connection) = CONNECTIONS.lock().await.remove(&id) {
+	async fn close(id: MessageId, connections: &mut HashMap<MessageId, Connection>) -> Result<()> {
+		if let Some(connection) = connections.remove(&id) {
 			connection.close().await?;
 			Ok(())
 		} else {
@@ -135,9 +135,10 @@ pub async fn gatekeep(ids: impl Iterator<Item = MessageId>) -> Result<String> {
 		}
 	}
 
+	let mut connections = CONNECTIONS.lock().await;
 	let mut result = String::with_capacity(128);
 	for id in ids {
-		result += &format!("**`{id}`** {}\n", match close(id).await {
+		result += &format!("**`{id}`** {}\n", match close(id, &mut connections).await {
 			Ok(()) => String::from("was closed successfully."),
 			Err(e) => format!("could not be closed: {e}."),
 		});

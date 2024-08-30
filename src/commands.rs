@@ -8,7 +8,7 @@ use serenity::all::{
 };
 use crate::{
 	connections::{self, CONNECTIONS},
-	extensions::ChannelIdExt,
+	extensions::{ChannelIdExt, MessageExt},
 	interactions::TIME_UNITS,
 	Executable,
 	ExecutableArg
@@ -88,5 +88,12 @@ pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 			ctx,
 			CreateMessage::new().content("_ _").select_menu(connections::menu().await)
 		).await?;
-	})
+	}),
+	"close all" => executable!(async |ctx, msg, connections| {
+		let ids = connections.keys().cloned().collect::<Vec<_>>();
+		drop(connections);
+		let result_msg = msg.channel_id.say(&ctx, "Loading...").await;
+		let result = connections::gatekeep(ids.into_iter()).await?;
+		result_msg?.edit_content(ctx, result).await?;
+	}),
 };
