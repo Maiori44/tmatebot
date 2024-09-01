@@ -1,7 +1,13 @@
 [package]
 name = "tmatebot"
-version = "0.1.0"
+version = "1.0.0"
+authors = ["Rosy.iso"]
 edition = "2021"
+rust-version = "1.80"
+description = "Discord bot to run instances of tmate"
+repository = "https://github.com/Maiori44/tmatebot"
+license = "Zlib"
+keywords = ["discord", "bot", "tmate"]
 
 [dependencies]
 dotenvy = "0.15.7"
