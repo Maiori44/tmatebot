@@ -44,13 +44,13 @@ async fn execute<T: ExecutableArg>(
 	if let Err(e) = to_execute(ctx, arg).await {
 		println!(
 			"{} trying to run `{}` as requested by {requester}: {e}.",
-			"Error".red(),
+			"Error".red().bold(),
 			key.purple()
 		);
 	} else {
 		println!(
 			"{} ran `{}` as requested by {requester}.",
-			"Successfully".green(),
+			"Successfully".green().bold(),
 			key.purple()
 		);
 	}

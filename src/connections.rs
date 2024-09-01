@@ -1,5 +1,6 @@
 use std::{collections::HashMap, io::BufRead, process::Stdio, sync::LazyLock, time::Duration};
 use circular_buffer::CircularBuffer;
+use owo_colors::OwoColorize;
 use serenity::{
 	all::{
 		ButtonStyle,
@@ -43,6 +44,12 @@ impl Connection {
 		instant: Instant,
 		timeout: u64
 	) -> Result<()> {
+		println!(
+			"{} connection {} that lasts {} seconds.",
+			"Starting".yellow().bold(),
+			display.id.bright_blue(),
+			timeout.green(),
+		);
 		display.edit_button(&ctx, "Close", ButtonStyle::Danger, false).await?;
 		let (tx, mut rx) = pipe::pipe()?;
 		let fd = tx.into_nonblocking_fd()?;
@@ -73,6 +80,11 @@ impl Connection {
 					if !expiring {
 						if n == 0 {
 							output.push_back(String::from("Session closed"));
+							println!(
+								"{} connection {}.",
+								"Closing".yellow().bold(),
+								display.id.bright_blue()
+							)
 						}
 						let bytes = &buf[0..n];
 						let mut lines = bytes.lines();
@@ -97,9 +109,16 @@ impl Connection {
 						linebreaks += 1;
 					}
 					if expiring && n > 0 {
+						println!("Timeout reached for {}.", display.id.bright_blue());
 						tokio::spawn(async move {
 							if let Some(connection) = CONNECTIONS.lock().await.remove(&display.id) {
-								connection.close().await.unwrap()
+								if let Err(e) = connection.close().await {
+									println!(
+										"{} trying to timeout connection {}: {e}.",
+										"Error".red().bold(),
+										display.id.bright_blue()
+									)
+								}
 							}
 						});
 					}
@@ -111,7 +130,13 @@ impl Connection {
 						break
 					}
 				}
-				display.edit_button(&ctx, "Close", ButtonStyle::Danger, true).await
+				display.edit_button(&ctx, "Close", ButtonStyle::Danger, true).await?;
+				println!(
+					"{} closed connection {}.",
+					"Successfully".green().bold(),
+					display.id.bright_blue()
+				);
+				Ok(())
 			})
 		});
 		Ok(())
