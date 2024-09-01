@@ -58,7 +58,7 @@ async fn execute<T: ExecutableArg>(
 
 fn load_list() -> Result<HashSet<UserId>> {
 	Ok(env::var("WHITELIST")?.split(',')
-		.map(|string_id| UserId::new(string_id.parse().unwrap_or_default()))
+		.map_while(|string_id| Some(UserId::new(string_id.parse().ok()?)))
 		.collect())
 }
 
@@ -77,8 +77,11 @@ impl EventHandler for Handler {
 			return
 		}
 		if !WHITELIST.contains(&msg.author.id) {
-			println!("Refused possible request by unauthorized user {}.", msg.author.id.bright_blue());
-			msg.reply_ping(ctx, "You are not authorized.").await.ok();
+			println!(
+				"Refused possible request by unauthorized user {}.",
+				msg.author.id.bright_blue()
+			);
+			msg.channel_id.say(ctx, "You are not authorized.").await.ok();
 			return
 		}
 		execute(&COMMANDS, ctx, msg).await;
@@ -91,6 +94,10 @@ impl EventHandler for Handler {
 		}
 		let Interaction::Component(interaction) = interaction else { return };
 		if !WHITELIST.contains(&interaction.user.id) {
+			println!(
+				"Refused possible interaction with unauthorized user {}.",
+				interaction.id.bright_blue()
+			);
 			return
 		}
 		execute(&INTERACTIONS, ctx, interaction).await;
