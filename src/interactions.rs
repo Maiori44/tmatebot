@@ -1,4 +1,4 @@
-use std::{env, time::Duration};
+use std::{env, path::PathBuf, sync::LazyLock, time::Duration};
 use owo_colors::OwoColorize;
 use serenity::{
 	all::{
@@ -59,13 +59,22 @@ async fn ask_input(
 	)
 }
 
+fn password_path(userid: UserId) -> PathBuf {
+	static DATA_PATH: LazyLock<PathBuf> = LazyLock::new(|| dirs::data_dir().map(|mut data_dir| {
+		data_dir.push("tmatebot");
+		std::fs::create_dir_all(&data_dir).ok();
+		data_dir
+	}).unwrap_or_default());
+	DATA_PATH.join(format!("{}.dat", userid))
+}
+
 async fn assert_password(
 	ctx: &Context,
 	password: &str,
 	userid: UserId,
 	msg: &mut Message
 ) -> Result<()> {
-	let saved_password = fs::read_to_string(format!("password_{}.dat", userid))
+	let saved_password = fs::read_to_string(password_path(userid))
 		.await
 		.unwrap_or_default();
 	if password.is_empty() && saved_password.is_empty() {
@@ -128,7 +137,7 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 		match assert_password(&ctx, old_password, interaction.user.id, &mut result_msg).await {
 			Ok(()) | Err(Error::Other("No passwords defined")) => {
 				fs::write(
-					format!("password_{}.dat", interaction.user.id),
+					password_path(interaction.user.id),
 					sha256::digest(new_password)
 				).await?;
 				result_msg.edit_content(ctx, "Passoword updated.").await?;
