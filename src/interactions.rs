@@ -25,7 +25,8 @@ use crate::{
 };
 use phf::{phf_ordered_map, OrderedMap};
 use tokio::{fs, time::Instant};
-use sha256;
+
+type OptionalInputTextBuilder = Option<fn(CreateInputText) -> CreateInputText>;
 
 impl ExecutableArg for ComponentInteraction {
 	fn key(&self) -> String {
@@ -40,7 +41,7 @@ impl ExecutableArg for ComponentInteraction {
 async fn ask_input(
 	ctx: &Context,
 	interaction: &ComponentInteraction,
-	fields: &[(&str, Option<fn(CreateInputText) -> CreateInputText>)],
+	fields: &[(&str, OptionalInputTextBuilder)],
 ) -> Result<Vec<String>> {
 	let mut modal = CreateQuickModal::new("Awaiting input").timeout(Duration::from_secs(60));
 	for (label, func) in fields {
@@ -118,7 +119,7 @@ pub static INTERACTIONS: OrderedMap<&str, Executable<ComponentInteraction>> = ph
 			Err(Error::Other("Invalid timeout time unit"))?;
 			unreachable!();
 		};
-		Connection::new(
+		Connection::start(
 			ctx,
 			display,
 			interaction.user.id,

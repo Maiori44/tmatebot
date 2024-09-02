@@ -37,7 +37,7 @@ pub struct Connection {
 }
 
 impl Connection {
-	pub async fn new(
+	pub async fn start(
 		ctx: Context,
 		mut display: Message,
 		creator: UserId,
@@ -104,7 +104,7 @@ impl Connection {
 					let mut linebreaks = 0;
 					for line in &output {
 						expiring |= line.ends_with("0 client currently connected");
-						display_text += &line;
+						display_text += line;
 						display_text.push('\n');
 						linebreaks += 1;
 					}

@@ -45,7 +45,7 @@ fn format_list(name: &str, iter: impl Iterator<Item = impl Display>) -> String {
 	result
 }
 
-const PASSWORD_PROMPT: &'static str = "Authorization is required.";
+const PASSWORD_PROMPT: &str = "Authorization is required.";
 
 pub static COMMANDS: OrderedMap<&str, Executable<Message>> = phf_ordered_map! {
 	"help" => executable!(async |ctx, msg| {
