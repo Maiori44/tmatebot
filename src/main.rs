@@ -1,9 +1,20 @@
-use std::{collections::HashSet, env, error::Error, sync::LazyLock};
+use std::{collections::HashSet, env, error::Error, path::Path, sync::LazyLock};
 use commands::COMMANDS;
 use interactions::INTERACTIONS;
 use owo_colors::OwoColorize;
 use serenity::{
-	all::{Context, EventHandler, GatewayIntents, Interaction, Message, Ready, UserId}, async_trait, futures::future::BoxFuture, Client
+	all::{
+		Context,
+		EventHandler,
+		GatewayIntents,
+		Interaction,
+		Message,
+		Ready,
+		UserId
+	},
+	async_trait,
+	futures::future::BoxFuture,
+	Client
 };
 use phf::OrderedMap;
 
@@ -106,7 +117,13 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	dotenvy::dotenv()?;
+	if Path::new(".env").exists() {
+		dotenvy::dotenv()?;
+		println!("Loaded local .env configuartion.");
+	} else {
+		dotenvy::from_path(dirs::config_dir().unwrap().join("tmatebot.env"))?;
+		println!("Loaded global .env configuartion.");
+	}
 	let mut client = Client::builder(env::var("TOKEN")?, GatewayIntents::DIRECT_MESSAGES)
 		.event_handler(Handler)
 		.await?;
